@@ -1,0 +1,11 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+.streamlit/secrets.toml
+data/uploads/*
+data/faiss_index/*
+!.gitkeep
+.pytest_cache/
+.DS_Store
