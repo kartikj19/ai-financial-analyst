@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 from src.config import APP_TITLE, APP_SUBTITLE, DEFAULT_TOP_K
 from src.rag import build_vector_store, answer_question, summarize_documents
+from src.kpi import extract_financial_kpis
 
 load_dotenv()
 st.set_page_config(page_title=APP_TITLE, page_icon="📊", layout="wide")
@@ -66,6 +67,57 @@ col1, col2 = st.columns([2, 1])
 with col2:
     st.info("**How it works**\n\nPDF → text → chunks → embeddings → FAISS → relevant passages → Gemini → cited answer")
     if st.session_state.vector_store and st.button("📝 Summarize documents", use_container_width=True):
+							st.divider()
+
+st.subheader("📊 Financial KPI Dashboard")
+
+if st.session_state.vector_store:
+    if st.button(
+        "🔍 Extract Financial KPIs",
+        use_container_width=True,
+    ):
+        with st.spinner("Extracting financial KPIs..."):
+            try:
+                st.session_state.kpis = extract_financial_kpis(
+                    st.session_state.vector_store
+                )
+            except Exception as exc:
+                st.error(f"KPI extraction failed: {exc}")
+                st.session_state.kpis = None
+
+if "kpis" in st.session_state and st.session_state.kpis:
+    kpis = st.session_state.kpis.get("kpis", [])
+
+    if kpis:
+        columns = st.columns(min(len(kpis), 4))
+
+        for index, kpi in enumerate(kpis):
+            with columns[index % 4]:
+                st.metric(
+                    label=kpi["name"],
+                    value=kpi["value"],
+                    help=(
+                        f"Period: {kpi['period']} | "
+                        f"Source: {kpi['source']} | "
+                        f"Page: {kpi['page']}"
+                    ),
+                )
+
+        st.caption(
+            "KPIs are extracted from the uploaded documents. "
+            "Always verify figures against the original report."
+        )
+
+        with st.expander("📑 KPI Sources"):
+            for kpi in kpis:
+                st.write(
+                    f"**{kpi['name']}** — "
+                    f"{kpi['source']}, page {kpi['page']}"
+                )
+    else:
+        st.info(
+            "No reliable financial KPIs were found in the uploaded documents."
+        )
         with st.spinner("Generating summaries..."):
             try:
                 st.session_state.summary = summarize_documents(st.session_state.vector_store)
