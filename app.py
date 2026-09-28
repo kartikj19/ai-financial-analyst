@@ -601,8 +601,12 @@ if (
 
 import re
 
+if "comparison_result" not in st.session_state or not st.session_state.comparison_result:
+    st.stop()
 
+result = st.session_state.comparison_result
 answer_text = result["answer"]
+
 
 # Gemini can occasionally return a list instead of a string
 if isinstance(answer_text, list):
