@@ -93,3 +93,61 @@ def summarize_documents(vector_store: FAISS) -> str:
         ("human", "Create a concise analyst-style summary."),
     ])
     return (prompt | _llm()).invoke({"context": context}).content
+def compare_documents(
+    vector_store: FAISS,
+    question: str,
+    top_k: int = 10
+) -> dict[str, Any]:
+    """
+    Retrieve relevant passages from multiple uploaded documents
+    and compare them using Gemini.
+    """
+
+    docs = vector_store.similarity_search(question, k=top_k)
+
+    if not docs:
+        return {
+            "answer": "I couldn't find enough information in the uploaded documents to compare them reliably.",
+            "sources": []
+        }
+
+    context, sources = _context_and_sources(docs)
+
+    comparison_prompt = ChatPromptTemplate.from_messages([
+        (
+            "system",
+            """You are an AI financial document comparison assistant.
+
+Compare information ONLY from the supplied document context.
+
+Rules:
+- Do not invent figures, dates, company facts, or calculations.
+- Clearly identify which PDF each figure comes from.
+- Preserve currencies, units, percentages and reporting periods.
+- If information is missing from one document, explicitly say so.
+- When comparing values, show the values from each document.
+- Explain important differences when supported by the documents.
+- Do not provide personalized investment advice.
+- Mention source document and page when useful.
+
+Document context:
+{context}
+"""
+        ),
+        (
+            "human",
+            "Compare the uploaded financial documents based on this question:\n\n{question}"
+        )
+    ])
+
+    chain = comparison_prompt | _llm()
+
+    response = chain.invoke({
+        "context": context,
+        "question": question
+    })
+
+    return {
+        "answer": response.content,
+        "sources": sources
+    }
